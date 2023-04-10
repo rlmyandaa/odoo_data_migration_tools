@@ -1,0 +1,88 @@
+<odoo>
+  <data>
+    <!-- explicit list view definition -->
+
+    <record model="ir.ui.view" id="odoo_data_migration.list">
+      <field name="name">odoo_data_migration list</field>
+      <field name="model">odoo.data.migration</field>
+      <field name="arch" type="xml">
+        <tree>
+          <field name="name"/>
+          <field name="description"/>
+          <field name="model_name"/>
+        </tree>
+      </field>
+    </record>
+
+    <record model="ir.ui.view" id="odoo_data_migration.form">
+      <field name="name">Migration Form</field>
+      <field name="model">odoo.data.migration</field>
+      <field name="arch" type="xml">
+        <form>
+          <header>
+            <button type="object" name="run_migration" string="Run Migration"/>
+          </header>
+          <sheet>
+            <group>
+              <group>
+                <field name="name"/>
+                <field name="description"/>
+                <field name="model_name_relation"/>
+                <field name="model_name" attrs="{'readonly':[('id', '!=', False)]}"/>
+                <field name="migration_function"/>
+                
+              </group>
+              <group>
+                <field name="is_run_at_upgrade"/>
+                <field name="migration_status"/>
+                <field name="last_run" attrs="{'readonly':[('id', '!=', False)]}"/>
+              </group>
+            </group>
+            <group>
+              <field name="error_traceback" attrs="{'readonly':[('id', '!=', False)]}"/>
+            </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+
+    <!-- actions opening views on models -->
+
+    <record model="ir.actions.act_window" id="odoo_data_migration.action_window">
+      <field name="name">Data Migration</field>
+      <field name="res_model">odoo.data.migration</field>
+      <field name="view_mode">tree,form</field>
+    </record>
+
+
+    <!-- server action to the one above -->
+<!--
+    <record model="ir.actions.server" id="odoo_data_migration.action_server">
+      <field name="name">odoo_data_migration server</field>
+      <field name="model_id" ref="model_odoo_data_migration_odoo_data_migration"/>
+      <field name="state">code</field>
+      <field name="code">
+        action = {
+          "type": "ir.actions.act_window",
+          "view_mode": "tree,form",
+          "res_model": model._name,
+        }
+      </field>
+    </record>
+-->
+
+    <!-- Top menu item -->
+
+    <menuitem name="Data Migration Tools" id="odoo_data_migration.menu_root"/>
+
+    <!-- menu categories -->
+
+    <menuitem name="Data Migration" id="odoo_data_migration.menu_1" parent="odoo_data_migration.menu_root"/>
+    <!-- actions -->
+
+    <menuitem name="Data Migration" id="odoo_data_migration.menu_1_list" parent="odoo_data_migration.menu_1"
+              action="odoo_data_migration.action_window"/>
+
+  </data>
+</odoo>
