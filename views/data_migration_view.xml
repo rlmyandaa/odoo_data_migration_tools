@@ -3,13 +3,17 @@
     <!-- explicit list view definition -->
 
     <record model="ir.ui.view" id="odoo_data_migration.list">
-      <field name="name">odoo_data_migration list</field>
+      <field name="name">Migration List</field>
       <field name="model">odoo.data.migration</field>
       <field name="arch" type="xml">
         <tree>
           <field name="name"/>
           <field name="description"/>
           <field name="model_name"/>
+          <field name="migration_function"/>
+          <field name="migration_status"/>
+          <field name="is_run_at_upgrade"/>
+          <field name="migration_created_date"/>
         </tree>
       </field>
     </record>
@@ -21,6 +25,7 @@
         <form>
           <header>
             <button type="object" name="run_migration" string="Run Migration"/>
+            <field name="migration_status" widget="statusbar" statusbar_visible="queued,running,done,failed"/>
           </header>
           <sheet>
             <group>
@@ -28,13 +33,11 @@
                 <field name="name"/>
                 <field name="description"/>
                 <field name="model_name_relation"/>
-                <field name="model_name" attrs="{'readonly':[('id', '!=', False)]}"/>
+                <field name="model_name"/>
                 <field name="migration_function"/>
-                
               </group>
               <group>
                 <field name="is_run_at_upgrade"/>
-                <field name="migration_status"/>
                 <field name="last_run" attrs="{'readonly':[('id', '!=', False)]}"/>
               </group>
             </group>
@@ -44,6 +47,17 @@
           </sheet>
         </form>
       </field>
+    </record>
+
+    <record id="batch_data_migration_action_server_triger" model="ir.actions.server">
+        <field name="name">Batch Data Migration</field>
+        <field name="type">ir.actions.server</field>
+        <field name="model_id" ref="model_odoo_data_migration"/>
+        <field name="binding_model_id" ref="model_odoo_data_migration"/>
+        <field name="state">code</field>
+        <field name="code">
+          records.batch_migration()
+        </field>
     </record>
 
 

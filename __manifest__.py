@@ -13,9 +13,11 @@
     'website': "http://www.hrsynd.site",
     'category': 'Uncategorized',
     'version': '1.0',
+    'installable': True,
+    'application': True,
 
     # Add depends to existing module that needs to be migrated
-    'depends': ['base'],
+    'depends': ['base', 'mail'],
 
     # always loaded
     'data': [

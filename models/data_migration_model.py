@@ -35,6 +35,16 @@ class OdooDataMigration(models.Model):
     last_run = fields.Datetime('Last Migration Run')
     error_traceback = fields.Text('Error Debug Traceback')
     
+    migration_created_date = fields.Datetime('Migration Creation Date')
+    
+    @api.model
+    def create(self, vals):
+        result = super().create(vals)
+        result.write({
+            'migration_created_date': datetime.now()
+        })
+        return result
+    
     @api.constrains('model_name')
     def _validate_model_name(self):
         ir_model_obj : models.Model = self.env['ir.model']
@@ -84,6 +94,10 @@ class OdooDataMigration(models.Model):
         
         return init
     
+    def batch_migration(self):
+        for record in self:
+            record.run_migration()
+    
     def run_migration(self):
         self.ensure_one()
         self.mark_running()
@@ -120,7 +134,3 @@ class OdooDataMigration(models.Model):
             'migration_status': eMigrationStatus.failed.name,
             'error_traceback': error_traceback
         })
-    
-    def test_call(self):
-        return True
-        
