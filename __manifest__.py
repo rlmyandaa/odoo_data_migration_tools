@@ -23,7 +23,8 @@
     'data': [
         'security/ir.model.access.csv',
         'migration_list/migration_list.xml',
-        'views/data_migration_view.xml'
+        'views/reschedule_wizard_view.xml',
+        'views/data_migration_view.xml',
     ],
     # only loaded in demonstration mode
     'demo': [],

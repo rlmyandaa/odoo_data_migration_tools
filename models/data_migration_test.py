@@ -9,6 +9,4 @@ class OdooDataMigrationTest(models.Model):
     name = fields.Char('Migration Name', required=True)
     
     def test_run(self):
-        self.write({
-            'name': 'run'
-        })
+        print("YOLO")

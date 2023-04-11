@@ -34,8 +34,26 @@ class OdooDataMigration(models.Model):
         required=True)
     last_run = fields.Datetime('Last Migration Run')
     error_traceback = fields.Text('Error Debug Traceback')
-    
     migration_created_date = fields.Datetime('Migration Creation Date')
+    is_run_using_cron = fields.Boolean('Run using scheduled action?', default=False)
+    scheduled_running_time = fields.Datetime('Scheduled Running Time')
+    ir_cron_reference = fields.Many2one('ir.cron', string='Ir Cron Record')
+    
+    def _create_cron_data(self):
+        self.ensure_one()
+        payload = {
+            'name': 'Scheduled Migration - ' + self.name,
+            'model_id': self.env.ref('odoo_data_migration.model_odoo_data_migration').id,
+            # 'user_id': self.env.ref('base.user_root').id,
+            'state': 'code',
+            'code': "rec = env['odoo.data.migration'].browse({}).run_migration()".format(self.id),
+            'interval_number': 0,
+            'active': True,
+            'numbercall': 1,
+            'nextcall': self.scheduled_running_time
+        }
+        ir_cron_data = self.env['ir.cron'].create(payload)
+        return ir_cron_data
     
     @api.model
     def create(self, vals):
@@ -43,7 +61,31 @@ class OdooDataMigration(models.Model):
         result.write({
             'migration_created_date': datetime.now()
         })
+        
+        cron_result : OdooDataMigration = result.filtered_domain([
+            '&',
+            ('is_run_using_cron', '=', True),
+            ('scheduled_running_time', '!=', False)
+        ])
+        for migration in cron_result:
+            ir_cron_record = migration._create_cron_data()
+            migration.write({
+                'ir_cron_reference': ir_cron_record
+            })
+        
         return result
+    
+    @api.constrains('is_run_using_cron', 'scheduled_running_time',
+                    'is_run_at_upgrade')
+    def _validate_running_method(self):
+        for record in self:
+            # Using only either cron or at upgrade
+            if record.is_run_using_cron and record.is_run_at_upgrade:
+                raise ValidationError('Cannot run migration using both cron and at upgrade.')
+
+            # If using cron, make sure time is exist
+            if record.is_run_using_cron and not record.scheduled_running_time:
+                raise ValidationError('Running using cron needs to specify time of execution.')
     
     @api.constrains('model_name')
     def _validate_model_name(self):
@@ -58,12 +100,14 @@ class OdooDataMigration(models.Model):
                 'model_name_relation': relation.id
             })
     
+    
     @api.onchange('model_name_relation')
     def _auto_fill_model_name(self):    
         for record in self:
             record.write({
                 'model_name': record.model_name_relation.model
             })
+    
     
     def _auto_init(self):
         # Check if odoo data migration is init
@@ -94,15 +138,23 @@ class OdooDataMigration(models.Model):
         
         return init
     
+    
     def batch_migration(self):
         for record in self:
             record.run_migration()
+    
+    @api.model
+    def run_cron_migration(self, record_id):
+        record = self.browse(record_id)
+        record.run_migration()
     
     def run_migration(self):
         self.ensure_one()
         self.mark_running()
         is_exception_raised = False
         migrate = False
+        _logger.info('\STARTING MIGRATION : {} \nDESCRIPTION : {}'.format(
+                self.name, self.description))
         try:
             migrate = api.call_kw(self.env[self.model_name],
                              self.migration_function, args=[[]], kwargs={})
@@ -117,20 +169,48 @@ class OdooDataMigration(models.Model):
         _logger.info('\nMIGRATION RESULT : {}'.format('FAILED' if is_exception_raised else 'SUCCESS'))
         
         return migrate
+
     
     def mark_running(self):
         self.write({
+            'migration_status': eMigrationStatus.running.name,
             'last_run': datetime.now()
         })
+        self.env.cr.commit()
+    
     
     def mark_success(self):
         self.write({
             'migration_status': eMigrationStatus.done.name,
             'error_traceback': ''
         })
+        self.env.cr.commit()
+    
     
     def mark_failed(self, error_traceback):
         self.write({
             'migration_status': eMigrationStatus.failed.name,
             'error_traceback': error_traceback
         })
+        self.env.cr.commit()
+    
+    def requeue_migration(self):
+        self.write({
+            'migration_status': eMigrationStatus.queued.name
+        })
+    
+    def reschedule_cron(self):
+        self.ensure_one()
+        print(self)
+        self.requeue_migration()
+        self.write({
+            'is_run_at_upgrade': False,
+            'is_run_using_cron': True,
+            'scheduled_running_time': self.rescheduled_time
+        })
+        self.ir_cron_reference.write({
+            'active': True,
+            'numbercall': 1,
+            'nextcall': self.rescheduled_time
+        })
+    

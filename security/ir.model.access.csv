@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_odoo_data_migration,access_odoo_data_migration,model_odoo_data_migration,base.group_user,1,1,1,1
 access_odoo_data_migration_test,access_odoo_data_migration_test,model_odoo_data_migration_test,base.group_user,1,1,1,1
+access_reschedule_migration_wizard,access_reschedule_migration_wizard,model_reschedule_migration_wizard,base.group_user,1,1,1,1
