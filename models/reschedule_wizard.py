@@ -22,18 +22,26 @@ class RescheduleMigrationWizard(models.TransientModel):
             record.rescheduled_time = record.data_migration_record.scheduled_running_time
 
     def reschedule_cron(self):
+        """ Reschedule cron job for a data migration record."""
         self.ensure_one()
+
+        # First, requeue the migration
         self.data_migration_record.requeue_migration()
+
+        # Rewrite running method and scheduled time
         self.data_migration_record.write({
             'running_method': eRunningMethod.cron_job.name,
             'scheduled_running_time': self.rescheduled_time
         })
+
+        # Check for cron job record
         if not self.data_migration_record.ir_cron_reference:
             ir_cron_reference = self.data_migration_record._create_cron_data()
             self.data_migration_record.write({
                 'ir_cron_reference': ir_cron_reference
             })
 
+        # Rewrite cron job detail
         self.data_migration_record.ir_cron_reference.write({
             'active': True,
             'numbercall': 1,

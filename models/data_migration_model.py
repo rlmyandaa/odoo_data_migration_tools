@@ -10,6 +10,7 @@ from odoo.exceptions import ValidationError
 from odoo.tools.config import config
 
 from ..utils.enum import eMigrationStatus, eRunningMethod
+from ..utils.timezone_convert import convert_datetime_data
 
 _logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ class OdooDataMigration(models.Model):
 
         # First, convert the datetime from payload
         if not self.env.context.get('tz', False):
-            self._convert_datetime(vals)
+            convert_datetime_data(vals)
         result = super().create(vals)
 
         # Add migration date data
@@ -234,29 +235,6 @@ class OdooDataMigration(models.Model):
         }
         ir_cron_data = self.env['ir.cron'].create(payload)
         return ir_cron_data
-
-    def _do_convert_time(self, data):
-        datetime_str = data.get('scheduled_running_time')
-        if datetime_str:
-            datetime_format = "%Y-%m-%d %H:%M:%S"
-            datetime_obj = datetime.strptime(datetime_str, datetime_format)
-
-            # Get current timezone from config
-            server_timezone = config.get('timezone') or 'UTC'
-            server_datetime = pytz.timezone(
-                server_timezone).localize(datetime_obj)
-
-            utc_datetime = server_datetime.astimezone(
-                pytz.utc).replace(tzinfo=None)
-            data['scheduled_running_time'] = utc_datetime.strftime(
-                datetime_format)
-
-    def _convert_datetime(self, vals):
-        if isinstance(vals, list):
-            for data in vals:
-                self._do_convert_time(data)
-        elif isinstance(vals, dict):
-            self._do_convert_time(vals)
 
     def mark_running(self):
         """ Mark migration records as running. """
