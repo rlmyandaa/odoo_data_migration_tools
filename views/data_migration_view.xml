@@ -93,7 +93,9 @@
 
     <!-- Top menu item -->
 
-    <menuitem name="Data Migration Tools" id="odoo_data_migration.menu_root"/>
+    <menuitem name="Data Migration Tools"
+    id="odoo_data_migration.menu_root"
+    web_icon="odoo_data_migration,static/description/icon.png"/>
 
     <!-- menu categories -->
 
