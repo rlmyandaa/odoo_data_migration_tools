@@ -10,7 +10,7 @@
                     <field name="rescheduled_time"/>
                 </group>
                 <footer>
-                    <button name="reschedule_cron" string="Execute" type="object" class="btn-primary"/>
+                    <button name="reschedule_cron" string="Reschedule" type="object" class="btn-primary"/>
                 </footer>
             </form>
         </field>

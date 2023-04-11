@@ -40,10 +40,9 @@
                 <field name="migration_function"/>
               </group>
               <group>
-                <field name="is_run_at_upgrade" attrs="{'readonly':[('is_run_using_cron', '=', True)]}"/>
-                <field name="is_run_using_cron" attrs="{'readonly':[('is_run_at_upgrade', '=', True)]}"/>
-                <field name="scheduled_running_time" attrs="{'readonly':[('is_run_using_cron', '!=', True)], 'invisible': [('is_run_using_cron', '=', False)]}"/>
-                <field name="ir_cron_reference" attrs="{'readonly':[(1, '=', 1)], 'invisible': [('is_run_using_cron', '=', False)]}"/>
+                <field name="running_method" widget="selection_badge"/>
+                <field name="scheduled_running_time" attrs="{'readonly':[('running_method', '!=', 'cron_job')], 'invisible': [('running_method', '!=', 'cron_job')]}"/>
+                <field name="ir_cron_reference" attrs="{'readonly':[(1, '=', 1)], 'invisible': [('running_method', '!=', 'cron_job')]}"/>
                 <field name="last_run" attrs="{'readonly':[(1, '=', 1)]}"/>
               </group>
             </group>

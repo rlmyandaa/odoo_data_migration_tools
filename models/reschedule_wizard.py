@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api
+from ..utils.enum import eRunningMethod
 
 class RescheduleMigrationWizard(models.TransientModel):
     _name = 'reschedule.migration.wizard'
@@ -23,8 +24,7 @@ class RescheduleMigrationWizard(models.TransientModel):
         self.ensure_one()
         self.data_migration_record.requeue_migration()
         self.data_migration_record.write({
-            'is_run_at_upgrade': False,
-            'is_run_using_cron': True,
+            'running_method': eRunningMethod.cron_job.name,
             'scheduled_running_time': self.rescheduled_time
         })
         if not self.data_migration_record.ir_cron_reference:

@@ -5,7 +5,7 @@ from odoo import models, fields, api
 from odoo.exceptions import ValidationError
 import traceback
 import logging
-from ..utils.enum import eMigrationStatus
+from ..utils.enum import eMigrationStatus, eRunningMethod
 
 _logger = logging.getLogger(__name__)
 
@@ -20,7 +20,6 @@ class OdooDataMigration(models.Model):
     model_name = fields.Char('Source Model', required=True)
     migration_function = fields.Char('Migration Function', required=True,
                                      help='Migration Function Name in Source Model')
-    is_run_at_upgrade = fields.Boolean('Run Migration at Upgrade?', default=False, required=True)
     migration_status = fields.Selection(
         selection=[(eMigrationStatus.queued.name, 'Queued'), (eMigrationStatus.running.name, 'Running'),
                    (eMigrationStatus.done.name, 'Done'), (eMigrationStatus.failed.name, 'Failed')],
@@ -29,19 +28,13 @@ class OdooDataMigration(models.Model):
     last_run = fields.Datetime('Last Migration Run')
     error_traceback = fields.Text('Error Debug Traceback')
     migration_created_date = fields.Datetime('Migration Creation Date')
-    is_run_using_cron = fields.Boolean('Run using scheduled action?', default=False)
     scheduled_running_time = fields.Datetime('Scheduled Running Time')
     ir_cron_reference = fields.Many2one('ir.cron', string='Ir Cron Record')
-    running_method = fields.Char(string='Running Method', compute='_compute_running_method')
-    
-    @api.depends('is_run_at_upgrade', 'is_run_using_cron')
-    def _compute_running_method(self):
-        for record in self:
-            record.running_method = False
-            if record.is_run_at_upgrade:
-                record.running_method = 'at Upgrade'
-            if record.is_run_using_cron:
-                record.running_method = 'Cron Job'
+    running_method = fields.Selection(string='Migration Running Method',
+                                 selection=[
+                                     (eRunningMethod.at_upgrade.name, 'at Upgrade'),
+                                     (eRunningMethod.cron_job.name, 'Cron Job')], required=True,
+                                 default=eRunningMethod.at_upgrade.name)
     
     def _create_cron_data(self):
         self.ensure_one()
@@ -68,7 +61,7 @@ class OdooDataMigration(models.Model):
         
         cron_result : OdooDataMigration = result.filtered_domain([
             '&',
-            ('is_run_using_cron', '=', True),
+            ('running_method', '=', eRunningMethod.cron_job.name),
             ('scheduled_running_time', '!=', False)
         ])
         for migration in cron_result:
@@ -79,16 +72,15 @@ class OdooDataMigration(models.Model):
         
         return result
     
-    @api.constrains('is_run_using_cron', 'scheduled_running_time',
-                    'is_run_at_upgrade')
+    @api.constrains('running_method', 'scheduled_running_time')
     def _validate_running_method(self):
         for record in self:
             # Using only either cron or at upgrade
-            if record.is_run_using_cron and record.is_run_at_upgrade:
+            if record.running_method == eRunningMethod.cron_job.name and record.running_method == eRunningMethod.at_upgrade.name:
                 raise ValidationError('Cannot run migration using both cron and at upgrade.')
 
             # If using cron, make sure time is exist
-            if record.is_run_using_cron and not record.scheduled_running_time:
+            if record.running_method == eRunningMethod.cron_job.name and not record.scheduled_running_time:
                 raise ValidationError('Running using cron needs to specify time of execution.')
     
     @api.constrains('model_name')
@@ -120,7 +112,7 @@ class OdooDataMigration(models.Model):
         # Run auto upgrade
         auto_upgrade_data : OdooDataMigration = self.search([
             '&',
-            ('is_run_at_upgrade', '=', True),
+            ('running_method', '=', eRunningMethod.at_upgrade.name),
             ('migration_status', '!=', 'done')
         ])
         
@@ -202,19 +194,3 @@ class OdooDataMigration(models.Model):
         self.write({
             'migration_status': eMigrationStatus.queued.name
         })
-    
-    def reschedule_cron(self):
-        self.ensure_one()
-        print(self)
-        self.requeue_migration()
-        self.write({
-            'is_run_at_upgrade': False,
-            'is_run_using_cron': True,
-            'scheduled_running_time': self.rescheduled_time
-        })
-        self.ir_cron_reference.write({
-            'active': True,
-            'numbercall': 1,
-            'nextcall': self.rescheduled_time
-        })
-    

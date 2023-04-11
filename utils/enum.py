@@ -5,3 +5,7 @@ class eMigrationStatus(str, Enum):
     running = auto()
     done = auto()
     failed = auto()
+
+class eRunningMethod(str, Enum):
+    at_upgrade = auto()
+    cron_job = auto()
