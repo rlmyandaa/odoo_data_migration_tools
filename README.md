@@ -37,7 +37,7 @@ You can create migration either manually in odoo view, or you can define your mi
 Let's say, in res.partner we want to add a new field named `partner_rank` where it will define a partner rank according to how many invoice stored in `invoice_ids` field. To populate partner_rank data for all old res.partner data, we can create a migration by doing these 3 step.
 
  1. Create this function inside res.partner model
-	```
+.. code-block:: python
 	def migrate_partner_rank(self):
 		partners = self.search([])
 		for partner in partners:
@@ -45,7 +45,7 @@ Let's say, in res.partner we want to add a new field named `partner_rank` where 
 				partner.partner_rank = 'regular'
 			else:
 				partner.partner_rank = 'non regular'
-	```
+
 2. Define the migration record, for this example we will define it inside the migration_list.xml data. For this example if we want to execute it when upgrading the module.
 	```
 	<record id="test_migrate_data_2" model="odoo.data.migration">
