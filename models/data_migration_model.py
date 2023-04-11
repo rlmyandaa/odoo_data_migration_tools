@@ -1,15 +1,18 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
-from odoo import models, fields, api
-from odoo.exceptions import ValidationError
-import traceback
 import logging
-from ..utils.enum import eMigrationStatus, eRunningMethod
+import traceback
+from datetime import datetime
+
 import pytz
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 from odoo.tools.config import config
 
+from ..utils.enum import eMigrationStatus, eRunningMethod
+
 _logger = logging.getLogger(__name__)
+
 
 class OdooDataMigration(models.Model):
     _name = 'odoo.data.migration'
@@ -20,11 +23,20 @@ class OdooDataMigration(models.Model):
     description = fields.Text('Migration Description')
     model_name_relation = fields.Many2one('ir.model', string='Model Name')
     model_name = fields.Char('Source Model', required=True)
-    migration_function = fields.Char('Migration Function', required=True,
-                                     help='Migration Function Name in Source Model')
+    migration_function = fields.Char(
+        'Migration Function',
+        required=True,
+        help='Migration Function Name in Source Model')
     migration_status = fields.Selection(
-        selection=[(eMigrationStatus.queued.name, 'Queued'), (eMigrationStatus.running.name, 'Running'),
-                   (eMigrationStatus.done.name, 'Done'), (eMigrationStatus.failed.name, 'Failed')],
+        selection=[
+            (eMigrationStatus.queued.name,
+             'Queued'),
+            (eMigrationStatus.running.name,
+             'Running'),
+            (eMigrationStatus.done.name,
+             'Done'),
+            (eMigrationStatus.failed.name,
+             'Failed')],
         default=eMigrationStatus.queued.name,
         required=True)
     last_run = fields.Datetime('Last Migration Run')
@@ -32,12 +44,181 @@ class OdooDataMigration(models.Model):
     migration_created_date = fields.Datetime('Migration Creation Date')
     scheduled_running_time = fields.Datetime('Scheduled Running Time')
     ir_cron_reference = fields.Many2one('ir.cron', string='Ir Cron Record')
-    running_method = fields.Selection(string='Migration Running Method',
-                                 selection=[
-                                     (eRunningMethod.at_upgrade.name, 'at Upgrade'),
-                                     (eRunningMethod.cron_job.name, 'Cron Job')], required=True,
-                                 default=eRunningMethod.at_upgrade.name)
-    
+    running_method = fields.Selection(
+        string='Migration Running Method',
+        selection=[
+            (eRunningMethod.at_upgrade.name,
+             'at Upgrade'),
+            (eRunningMethod.cron_job.name,
+             'Cron Job')],
+        required=True,
+        default=eRunningMethod.at_upgrade.name)
+
+    ####################################
+    # Compute function
+    ####################################
+    @api.constrains('running_method', 'scheduled_running_time')
+    def _validate_running_method(self):
+        """ Validate running_method for the migration records. """
+        for record in self:
+            # Using only either cron or at upgrade
+            if record.running_method == eRunningMethod.cron_job.name and\
+                    record.running_method == eRunningMethod.at_upgrade.name:
+                raise ValidationError(
+                    'Cannot run migration using both cron and at upgrade.')
+
+            # If using cron, make sure time is exist
+            if record.running_method == eRunningMethod.cron_job.name and not record.scheduled_running_time:
+                raise ValidationError(
+                    'Running using cron needs to specify time of execution.')
+
+    @api.constrains('model_name')
+    def _validate_model_name(self):
+        """ Validate model name, and also fill out the model relation data to ir.model. """
+        ir_model_obj: models.Model = self.env['ir.model']
+        for record in self:
+            domain = [('model', '=', record.model_name)]
+            relation = ir_model_obj.search(domain, limit=1)
+            if not relation:
+                raise ValidationError(
+                    'Model {} is not found.'.format(
+                        self.model_name))
+
+            record.write({
+                'model_name_relation': relation.id
+            })
+
+    @api.onchange('model_name_relation')
+    def _auto_fill_model_name(self):
+        """ Autofill model_name field after selection model. Used in view to add
+        better UX.
+        """
+        for record in self:
+            record.write({
+                'model_name': record.model_name_relation.model
+            })
+
+    ####################################
+    # Main Migration Function
+    ####################################
+
+    @api.model
+    def create(self, vals):
+        # In case if we add the record from xml data, we need to parse
+        # the datetime field since every datetime that will be saved in
+        # db should be in UTC.
+        # First, determine if there are any timezone context first, if the records
+        # are created from xml data, there should be no timezone context.
+        # But if the record is created from the view, there should be timezone
+        # context.
+
+        # First, convert the datetime from payload
+        if not self.env.context.get('tz', False):
+            self._convert_datetime(vals)
+        result = super().create(vals)
+
+        # Add migration date data
+        result.write({
+            'migration_created_date': datetime.now()
+        })
+
+        # Look for record that is using cron as the running method,
+        # then create ir_cron record data so it will be executed
+        # through odoo cron job.
+        cron_result: OdooDataMigration = result.filtered_domain([
+            '&',
+            ('running_method', '=', eRunningMethod.cron_job.name),
+            ('scheduled_running_time', '!=', False)
+        ])
+        for migration in cron_result:
+            # Create cron job record
+            ir_cron_record = migration._create_cron_data()
+            # Add cron job record reference
+            migration.write({
+                'ir_cron_reference': ir_cron_record
+            })
+
+        return result
+
+    @api.model
+    def trigger_migration_upgrade(self):
+        """
+        Main trigger function to run migration when upgrading the module.
+        All migration records that in queue and using running_method at_upgrade
+        will be migrated during module upgrading process.
+        """
+        # Run auto upgrade
+        auto_upgrade_data: OdooDataMigration = self.search([
+            '&',
+            ('running_method', '=', eRunningMethod.at_upgrade.name),
+            ('migration_status', '!=', 'done')
+        ])
+
+        migration_count = len(auto_upgrade_data)
+        failed_migration_count = 0
+        _logger.info(
+            '\nRunning auto migration for {} migration.'.format(migration_count))
+
+        for index, migration in enumerate(auto_upgrade_data):
+            _logger.info(
+                '\nRUNNING MIGRATION #{} \nMIGRATION : {} \nDESCRIPTION : {}'.format(
+                    index + 1, migration.name, migration.description))
+            migration.run_migration()
+            if migration.migration_status == eMigrationStatus.failed.name:
+                failed_migration_count += 1
+
+        _logger.info(
+            '\nMigration done running\nTOTAL: {}\nSUCCESS: {}\nFAILED: {}'.format(
+                migration_count,
+                migration_count -
+                failed_migration_count,
+                failed_migration_count))
+
+        return True
+
+    def batch_migration(self):
+        """
+        Function to run migration as batch. Used for contextual action button
+        in list view.
+        """
+        for record in self:
+            record.run_migration()
+
+    def run_migration(self):
+        """ Main migration running function. """
+
+        self.ensure_one()
+        # Mark migration as running
+        self.mark_running()
+
+        is_exception_raised = False
+        migrate = False
+        _logger.info('\\STARTING MIGRATION : {} \nDESCRIPTION : {}'.format(
+            self.name, self.description))
+
+        # Try to run migration
+        try:
+            migrate = api.call_kw(self.env[self.model_name],
+                                  self.migration_function, args=[[]], kwargs={})
+        except Exception as e:
+            is_exception_raised = True
+            traceback_message = traceback.format_exc()
+            # If failed, mark failed and log the traceback message
+            self.mark_failed(traceback_message)
+
+        # Check if exception raised
+        if not is_exception_raised:
+            self.mark_success()
+
+        _logger.info('\nMIGRATION RESULT : {}'.format(
+            'FAILED' if is_exception_raised else 'SUCCESS'))
+
+        return migrate
+
+    ####################################
+    # Utils
+    ####################################
+
     def _create_cron_data(self):
         self.ensure_one()
         payload = {
@@ -53,164 +234,61 @@ class OdooDataMigration(models.Model):
         }
         ir_cron_data = self.env['ir.cron'].create(payload)
         return ir_cron_data
-    
+
     def _do_convert_time(self, data):
         datetime_str = data.get('scheduled_running_time')
         if datetime_str:
             datetime_format = "%Y-%m-%d %H:%M:%S"
             datetime_obj = datetime.strptime(datetime_str, datetime_format)
-            
+
             # Get current timezone from config
             server_timezone = config.get('timezone') or 'UTC'
-            server_datetime = pytz.timezone(server_timezone).localize(datetime_obj)
-            
-            utc_datetime = server_datetime.astimezone(pytz.utc).replace(tzinfo=None)
-            data['scheduled_running_time'] = utc_datetime.strftime(datetime_format)
-    
+            server_datetime = pytz.timezone(
+                server_timezone).localize(datetime_obj)
+
+            utc_datetime = server_datetime.astimezone(
+                pytz.utc).replace(tzinfo=None)
+            data['scheduled_running_time'] = utc_datetime.strftime(
+                datetime_format)
+
     def _convert_datetime(self, vals):
         if isinstance(vals, list):
             for data in vals:
                 self._do_convert_time(data)
         elif isinstance(vals, dict):
             self._do_convert_time(vals)
-        
-    @api.model
-    def create(self, vals):
-        if not self.env.context.get('tz', False):
-            self._convert_datetime(vals)
-        result = super().create(vals)
-        result.write({
-            'migration_created_date': datetime.now()
-        })
-        
-        cron_result : OdooDataMigration = result.filtered_domain([
-            '&',
-            ('running_method', '=', eRunningMethod.cron_job.name),
-            ('scheduled_running_time', '!=', False)
-        ])
-        for migration in cron_result:
-            ir_cron_record = migration._create_cron_data()
-            migration.write({
-                'ir_cron_reference': ir_cron_record
-            })
-        
-        return result
-    
-    @api.constrains('running_method', 'scheduled_running_time')
-    def _validate_running_method(self):
-        for record in self:
-            # Using only either cron or at upgrade
-            if record.running_method == eRunningMethod.cron_job.name and record.running_method == eRunningMethod.at_upgrade.name:
-                raise ValidationError('Cannot run migration using both cron and at upgrade.')
 
-            # If using cron, make sure time is exist
-            if record.running_method == eRunningMethod.cron_job.name and not record.scheduled_running_time:
-                raise ValidationError('Running using cron needs to specify time of execution.')
-    
-    @api.constrains('model_name')
-    def _validate_model_name(self):
-        ir_model_obj : models.Model = self.env['ir.model']
-        for record in self:
-            domain = [('model', '=', record.model_name)]
-            relation = ir_model_obj.search(domain, limit=1)
-            if not relation:
-                raise ValidationError('Model {} is not found.'.format(self.model_name))
-            
-            record.write({
-                'model_name_relation': relation.id
-            })
-    
-    
-    @api.onchange('model_name_relation')
-    def _auto_fill_model_name(self):    
-        for record in self:
-            record.write({
-                'model_name': record.model_name_relation.model
-            })
-    
-    @api.model
-    def trigger_migration_upgrade(self):
-        # Run auto upgrade
-        auto_upgrade_data : OdooDataMigration = self.search([
-            '&',
-            ('running_method', '=', eRunningMethod.at_upgrade.name),
-            ('migration_status', '!=', 'done')
-        ])
-        
-        migration_count = len(auto_upgrade_data)
-        failed_migration_count = 0
-        _logger.info('\nRunning auto migration for {} migration.'.format(migration_count))
-        
-        for index, migration in enumerate(auto_upgrade_data):
-            _logger.info('\nRUNNING MIGRATION #{} \nMIGRATION : {} \nDESCRIPTION : {}'.format(
-                index + 1, migration.name, migration.description))
-            migration.run_migration()
-            if migration.migration_status == eMigrationStatus.failed.name:
-                failed_migration_count += 1
-        
-        _logger.info('\nMigration done running\nTOTAL: {}\nSUCCESS: {}\nFAILED: {}'.format(
-            migration_count, migration_count - failed_migration_count, failed_migration_count
-        ))
-        
-        return True
-    
-    
-    def batch_migration(self):
-        for record in self:
-            record.run_migration()
-    
-    @api.model
-    def run_cron_migration(self, record_id):
-        record = self.browse(record_id)
-        record.run_migration()
-    
-    def run_migration(self):
-        self.ensure_one()
-        self.mark_running()
-        is_exception_raised = False
-        migrate = False
-        _logger.info('\STARTING MIGRATION : {} \nDESCRIPTION : {}'.format(
-                self.name, self.description))
-        try:
-            migrate = api.call_kw(self.env[self.model_name],
-                             self.migration_function, args=[[]], kwargs={})
-        except Exception as e:
-            is_exception_raised = True
-            traceback_message = traceback.format_exc()
-            self.mark_failed(traceback_message)
-        
-        if not is_exception_raised:
-            self.mark_success()
-        
-        _logger.info('\nMIGRATION RESULT : {}'.format('FAILED' if is_exception_raised else 'SUCCESS'))
-        
-        return migrate
-
-    
     def mark_running(self):
+        """ Mark migration records as running. """
         self.write({
             'migration_status': eMigrationStatus.running.name,
             'last_run': datetime.now()
         })
+        # Commit to avoid running error when using cron
         self.env.cr.commit()
-    
-    
+
     def mark_success(self):
+        """ Mark migration records as success. """
         self.write({
             'migration_status': eMigrationStatus.done.name,
             'error_traceback': ''
         })
+        # Commit to avoid running error when using cron
         self.env.cr.commit()
-    
-    
+
     def mark_failed(self, error_traceback):
+        """ Mark migration records as failed, also log the error traceback. """
         self.write({
             'migration_status': eMigrationStatus.failed.name,
             'error_traceback': error_traceback
         })
+        # Commit to avoid running error when using cron
         self.env.cr.commit()
-    
+
     def requeue_migration(self):
+        """ Requeue migration. With this, every migration that use running_method
+        at upgrade will be run in the next upgrade.
+        """
         self.write({
             'migration_status': eMigrationStatus.queued.name
         })

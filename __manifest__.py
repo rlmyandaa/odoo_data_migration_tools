@@ -25,7 +25,7 @@
         'migration_list/migration_list.xml',
         'views/reschedule_wizard_view.xml',
         'views/data_migration_view.xml',
-        
+
         # IMPORTANT : ALWAYS PUT THIS XML AT THE END OF THE DATA LIST
         'migration_list/migration_trigger.xml'
     ],

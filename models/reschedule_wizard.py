@@ -3,6 +3,7 @@
 from odoo import models, fields, api
 from ..utils.enum import eRunningMethod
 
+
 class RescheduleMigrationWizard(models.TransientModel):
     _name = 'reschedule.migration.wizard'
     _description = 'Reschedule Migration Wizard'
@@ -14,12 +15,12 @@ class RescheduleMigrationWizard(models.TransientModel):
     )
     rescheduled_time = fields.Datetime(string="Rescheduled Time",
                                        required=True)
-    
+
     @api.onchange('data_migration_record')
     def _autofill_rescheduled_time(self):
         for record in self:
             record.rescheduled_time = record.data_migration_record.scheduled_running_time
-    
+
     def reschedule_cron(self):
         self.ensure_one()
         self.data_migration_record.requeue_migration()
@@ -32,7 +33,7 @@ class RescheduleMigrationWizard(models.TransientModel):
             self.data_migration_record.write({
                 'ir_cron_reference': ir_cron_reference
             })
-        
+
         self.data_migration_record.ir_cron_reference.write({
             'active': True,
             'numbercall': 1,
