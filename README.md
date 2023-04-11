@@ -1,4 +1,5 @@
-![enter image description here](https://raw.githubusercontent.com/rlmyandaa/odoo_data_migration_tools/master/static/description/icon.png?token=GHSAT0AAAAAACATC3QC67IF3HQYXPGMQTAOZBVCJ6A)
+![icon](https://user-images.githubusercontent.com/49233604/231105650-455733f5-c42d-4ce5-8a00-b05e72c413ef.png)
+
 # Odoo Data Migration Tools and Management
 
 Odoo Data Migration Tools and Management. Simple tools for those who do a lot of data migration. With this tools, every data migration is tracked and can be run whether automatically, manually, or even by schedule.
