@@ -3,17 +3,11 @@
 from datetime import datetime
 from odoo import models, fields, api
 from odoo.exceptions import ValidationError
-from enum import Enum, auto
 import traceback
 import logging
+from ..utils.enum import eMigrationStatus
 
 _logger = logging.getLogger(__name__)
-
-class eMigrationStatus(str, Enum):
-    queued = auto()
-    running = auto()
-    done = auto()
-    failed = auto()
 
 class OdooDataMigration(models.Model):
     _name = 'odoo.data.migration'
@@ -38,6 +32,16 @@ class OdooDataMigration(models.Model):
     is_run_using_cron = fields.Boolean('Run using scheduled action?', default=False)
     scheduled_running_time = fields.Datetime('Scheduled Running Time')
     ir_cron_reference = fields.Many2one('ir.cron', string='Ir Cron Record')
+    running_method = fields.Char(string='Running Method', compute='_compute_running_method')
+    
+    @api.depends('is_run_at_upgrade', 'is_run_using_cron')
+    def _compute_running_method(self):
+        for record in self:
+            record.running_method = False
+            if record.is_run_at_upgrade:
+                record.running_method = 'at Upgrade'
+            if record.is_run_using_cron:
+                record.running_method = 'Cron Job'
     
     def _create_cron_data(self):
         self.ensure_one()

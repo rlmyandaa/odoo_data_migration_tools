@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
+
 from odoo import models, fields, api
-from odoo.exceptions import ValidationError
 
 class RescheduleMigrationWizard(models.TransientModel):
     _name = 'reschedule.migration.wizard'
@@ -26,6 +27,12 @@ class RescheduleMigrationWizard(models.TransientModel):
             'is_run_using_cron': True,
             'scheduled_running_time': self.rescheduled_time
         })
+        if not self.data_migration_record.ir_cron_reference:
+            ir_cron_reference = self.data_migration_record._create_cron_data()
+            self.data_migration_record.write({
+                'ir_cron_reference': ir_cron_reference
+            })
+        
         self.data_migration_record.ir_cron_reference.write({
             'active': True,
             'numbercall': 1,

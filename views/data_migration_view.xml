@@ -11,9 +11,10 @@
           <field name="description"/>
           <field name="model_name"/>
           <field name="migration_function"/>
-          <field name="migration_status"/>
-          <field name="is_run_at_upgrade"/>
+          <field name="migration_status" widget="badge" decoration-info="migration_status == 'queued'" decoration-success="migration_status == 'done'" decoration-danger="migration_status == 'failed'"/>
+          <field name="running_method"/>
           <field name="migration_created_date"/>
+          <field name="last_run"/>
         </tree>
       </field>
     </record>
@@ -41,8 +42,8 @@
               <group>
                 <field name="is_run_at_upgrade" attrs="{'readonly':[('is_run_using_cron', '=', True)]}"/>
                 <field name="is_run_using_cron" attrs="{'readonly':[('is_run_at_upgrade', '=', True)]}"/>
-                <field name="scheduled_running_time" attrs="{'readonly':[('is_run_using_cron', '!=', True)]}"/>
-                <field name="ir_cron_reference" attrs="{'readonly':[(1, '=', 1)]}"/>
+                <field name="scheduled_running_time" attrs="{'readonly':[('is_run_using_cron', '!=', True)], 'invisible': [('is_run_using_cron', '=', False)]}"/>
+                <field name="ir_cron_reference" attrs="{'readonly':[(1, '=', 1)], 'invisible': [('is_run_using_cron', '=', False)]}"/>
                 <field name="last_run" attrs="{'readonly':[(1, '=', 1)]}"/>
               </group>
             </group>
