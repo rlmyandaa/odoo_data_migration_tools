@@ -104,11 +104,8 @@ class OdooDataMigration(models.Model):
                 'model_name': record.model_name_relation.model
             })
     
-    
-    def _auto_init(self):
-        # Check if odoo data migration is init
-        init = super()._auto_init()
-        
+    @api.model
+    def trigger_migration_upgrade(self):
         # Run auto upgrade
         auto_upgrade_data : OdooDataMigration = self.search([
             '&',
@@ -119,7 +116,6 @@ class OdooDataMigration(models.Model):
         migration_count = len(auto_upgrade_data)
         failed_migration_count = 0
         _logger.info('\nRunning auto migration for {} migration.'.format(migration_count))
-        
         
         for index, migration in enumerate(auto_upgrade_data):
             _logger.info('\nRUNNING MIGRATION #{} \nMIGRATION : {} \nDESCRIPTION : {}'.format(
@@ -132,7 +128,7 @@ class OdooDataMigration(models.Model):
             migration_count, migration_count - failed_migration_count, failed_migration_count
         ))
         
-        return init
+        return True
     
     
     def batch_migration(self):
