@@ -47,7 +47,7 @@ Let's say, in res.partner we want to add a new field named `partner_rank` where 
 				partner.partner_rank = 'non regular'
 	```
 2. Define the migration record, for this example we will define it inside the migration_list.xml data. For this example if we want to execute it when upgrading the module.
-	```
+	```xml
 	<record id="test_migrate_data_2" model="odoo.data.migration">
 		<field name="name">Migrate Partner Rank</field>
 		<field name="description">Migrate Partner Rank</field>
@@ -57,7 +57,7 @@ Let's say, in res.partner we want to add a new field named `partner_rank` where 
 	</record>
 	```
 	or if we want to execute it at midnight, we can do this
-	```
+	```xml
 	<record id="test_migrate_data_2" model="odoo.data.migration">
 		<field name="name">Migrate Partner Rank</field>
 		<field name="description">Migrate Partner Rank</field>
