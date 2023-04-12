@@ -21,7 +21,7 @@ Odoo Data Migration Tools and Management. Simple tools for those who do a lot of
 	```
 2. Edit `depends` in this module manifest file, so that this module will depends to all related module where your target migration model is stored.
 	```
-	'depends': ['base',  'mail', 'module_1', etc],
+	'depends': ['base', 'module_1', etc],
 	```
 
 
