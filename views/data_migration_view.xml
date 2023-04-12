@@ -1,7 +1,6 @@
 <odoo>
   <data>
-    <!-- explicit list view definition -->
-
+    <!-- List View -->
     <record model="ir.ui.view" id="odoo_data_migration.list">
       <field name="name">Migration List</field>
       <field name="model">odoo.data.migration</field>
@@ -11,7 +10,7 @@
           <field name="description"/>
           <field name="model_name"/>
           <field name="migration_function"/>
-          <field name="migration_status" widget="badge" decoration-info="migration_status == 'queued'" decoration-success="migration_status == 'done'" decoration-danger="migration_status == 'failed'"/>
+          <field name="migration_status"/>
           <field name="running_method"/>
           <field name="migration_created_date"/>
           <field name="last_run"/>
@@ -19,6 +18,7 @@
       </field>
     </record>
 
+    <!-- Form View -->
     <record model="ir.ui.view" id="odoo_data_migration.form">
       <field name="name">Migration Form</field>
       <field name="model">odoo.data.migration</field>
@@ -27,7 +27,8 @@
           <header>
             <button type="object" name="run_migration" string="Run Migration"/>
             <button type="object" name="requeue_migration" string="Requeue Migration"/>
-            <button type="action" name="%(odoo_data_migration.reschedule_migration_wizard_action)d" string="Reschedule Cron"/>
+            <button type="action" name="%(odoo_data_migration.reschedule_migration_wizard_action)d"
+              string="Reschedule Cron"/>
             <field name="migration_status" widget="statusbar" statusbar_visible="queued,running,done,failed"/>
           </header>
           <sheet>
@@ -41,13 +42,15 @@
               </group>
               <group>
                 <field name="running_method" widget="selection_badge"/>
-                <field name="scheduled_running_time" attrs="{'readonly':[('running_method', '!=', 'cron_job')], 'invisible': [('running_method', '!=', 'cron_job')]}"/>
-                <field name="ir_cron_reference" attrs="{'readonly':[(1, '=', 1)], 'invisible': [('running_method', '!=', 'cron_job')]}"/>
-                <field name="last_run" attrs="{'readonly':[(1, '=', 1)]}"/>
+                <field name="scheduled_running_time"
+                  attrs="{'readonly':['|',('running_method', '!=', 'cron_job'), ('ir_cron_reference', '!=', False)],
+                  'invisible': [('running_method', '!=', 'cron_job')]}"/>
+                <field name="ir_cron_reference" readonly="1" attrs="{'invisible': [('running_method', '!=', 'cron_job')]}"/>
+                <field name="last_run" readonly="1"/>
               </group>
             </group>
             <group>
-              <field name="error_traceback" attrs="{'readonly':[('id', '!=', False)]}"/>
+              <field name="error_traceback" readonly="1"/>
             </group>
           </sheet>
         </form>
@@ -67,7 +70,6 @@
 
 
     <!-- actions opening views on models -->
-
     <record model="ir.actions.act_window" id="odoo_data_migration.action_window">
       <field name="name">Data Migration</field>
       <field name="res_model">odoo.data.migration</field>
@@ -75,35 +77,13 @@
     </record>
 
 
-    <!-- server action to the one above -->
-<!--
-    <record model="ir.actions.server" id="odoo_data_migration.action_server">
-      <field name="name">odoo_data_migration server</field>
-      <field name="model_id" ref="model_odoo_data_migration_odoo_data_migration"/>
-      <field name="state">code</field>
-      <field name="code">
-        action = {
-          "type": "ir.actions.act_window",
-          "view_mode": "tree,form",
-          "res_model": model._name,
-        }
-      </field>
-    </record>
--->
-
-    <!-- Top menu item -->
-
+    <!-- Root menu item -->
     <menuitem name="Data Migration Tools"
     id="odoo_data_migration.menu_root"
     web_icon="odoo_data_migration,static/description/icon.png"/>
-
-    <!-- menu categories -->
-
-    <menuitem name="Data Migration" id="odoo_data_migration.menu_1" parent="odoo_data_migration.menu_root"/>
-    <!-- actions -->
-
-    <menuitem name="Data Migration" id="odoo_data_migration.menu_1_list" parent="odoo_data_migration.menu_1"
-              action="odoo_data_migration.action_window"/>
-
+    <!-- Menu categories -->
+    <menuitem name="Data Migration" id="odoo_data_migration.menu_1" parent="odoo_data_migration.menu_root"
+      action="odoo_data_migration.action_window"/>
+    
   </data>
 </odoo>

@@ -43,7 +43,9 @@ class OdooDataMigration(models.Model):
     last_run = fields.Datetime('Last Migration Run')
     error_traceback = fields.Text('Error Debug Traceback')
     migration_created_date = fields.Datetime('Migration Creation Date')
-    scheduled_running_time = fields.Datetime('Scheduled Running Time')
+    scheduled_running_time = fields.Datetime('Scheduled Running Time',
+                                             help='You need to use reschedule menu to change scheduled\
+                                                 running time for migration that using cron job.')
     ir_cron_reference = fields.Many2one('ir.cron', string='Ir Cron Record')
     running_method = fields.Selection(
         string='Migration Running Method',
@@ -140,6 +142,23 @@ class OdooDataMigration(models.Model):
             })
 
         return result
+    
+    def write(self, vals_list):
+        # In case when changing migration from at_upgrade to using cron_job,
+        # auto add new ir_cron record.
+        result = super().write(vals_list)
+        cron_migration : OdooDataMigration = self.filtered_domain([
+            '&',
+            '&',
+            ('running_method', '=', eRunningMethod.cron_job.name),
+            ('scheduled_running_time', '!=', False),
+            ('ir_cron_reference', '=', False)
+        ])
+        for record in cron_migration:
+            cron_record = record._create_cron_data()
+            record.ir_cron_reference = cron_record
+        
+        return result
 
     @api.model
     def trigger_migration_upgrade(self):
@@ -184,6 +203,8 @@ class OdooDataMigration(models.Model):
         """
         for record in self:
             record.run_migration()
+            # Deactivate cron record so migration won't run twice
+            record._deactivate_cron()
 
     def run_migration(self):
         """ Main migration running function. """
@@ -270,3 +291,12 @@ class OdooDataMigration(models.Model):
         self.write({
             'migration_status': eMigrationStatus.queued.name
         })
+    
+    def _deactivate_cron(self):
+        """ Deactivate cron record. """
+        self.ensure_one()
+        if self.ir_cron_reference:
+            self.ir_cron_reference.write({
+                'active': False,
+                'numbercall': 0
+            })

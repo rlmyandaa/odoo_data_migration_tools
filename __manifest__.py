@@ -17,7 +17,7 @@
     'application': True,
 
     # Add depends to existing module that needs to be migrated
-    'depends': ['base', 'mail'],
+    'depends': ['base'],
 
     # always loaded
     'data': [
