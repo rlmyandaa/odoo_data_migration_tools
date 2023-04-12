@@ -10,6 +10,7 @@ Odoo Data Migration Tools and Management. Simple tools for those who do a lot of
  - Run migration automatically when upgrading module.
  - Run migration at a certain time by utilising odoo cron job.
  - Error logging in case there are error during migration.
+ - Compatible with Odoo 13 and 14
 
 ## Configuration
 
