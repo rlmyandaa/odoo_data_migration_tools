@@ -148,3 +148,34 @@ class TestOdooDataMigrationCron(TestOdooDataMigrationCommon):
 
         # Cleanup
         self.TEST_MODEL_OBJ.cleanup_data()
+
+    def test_4_cancel_cron_migration(self):
+        # First, create a cron migration. Then try to cancel it.
+        # When succeded, it should deactivate cron job record.
+        # Create a migration record
+        migration_name = 'Test Migration 3 Reschedule Cron'
+        scheduled_running_time = datetime.now() + relativedelta(minutes=1)
+        migration_record = self._create_migration_with_cron(
+            migration_name=migration_name,
+            model_name=self.TEST_MODEL_NAME,
+            function_name='test_unittest_ok',
+            scheduled_running_time=scheduled_running_time)
+
+        # Check the created record, should have ir_cron_record
+        self.assertIsNotNone(migration_record)
+        self.assertIsNotNone(migration_record.ir_cron_reference)
+        ir_cron_ref: ir_cron = migration_record.ir_cron_reference
+        self.assertEqual(ir_cron_ref.active, True)
+        self.assertEqual(ir_cron_ref.numbercall, 1)
+        self.assertEqual(ir_cron_ref.cron_name,
+                         'Scheduled Migration - {}'.format(migration_name))
+        self.assertEqual(ir_cron_ref.nextcall, scheduled_running_time)
+
+        # Then, try to cancel it.
+        migration_record.cancel_migration()
+
+        # Validate result
+        self.assertEqual(
+            migration_record.migration_status,
+            eMigrationStatus.cancelled.name)
+        self.assertEqual(ir_cron_ref.active, False)

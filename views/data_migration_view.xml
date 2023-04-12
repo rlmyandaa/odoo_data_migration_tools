@@ -29,9 +29,12 @@
           <header>
             <button type="object" name="run_migration" string="Run Migration"/>
             <button type="object" name="requeue_migration" string="Requeue Migration"/>
+            <button type="object" name="cancel_migration" string="Cancel Migration"
+              attrs="{'invisible': [('migration_status', 'in', ['cancelled', 'running', 'done'])]}"/>
             <button type="action" name="%(odoo_data_migration.reschedule_migration_wizard_action)d"
-              string="Reschedule Cron"/>
-            <field name="migration_status" widget="statusbar" statusbar_visible="queued,running,done,failed"/>
+              string="Reschedule Cron"
+              attrs="{'invisible': ['|', ('running_method', '=', 'at_upgrade'), ('migration_status', '=', 'done')]}"/>
+            <field name="migration_status" widget="statusbar" statusbar_visible="cancelled,queued,running,done,failed"/>
           </header>
           <sheet>
             <group>
@@ -67,6 +70,17 @@
         <field name="state">code</field>
         <field name="code">
           records.batch_migration()
+        </field>
+    </record>
+
+    <record id="batch_cancel_data_migration_action_server_triger" model="ir.actions.server">
+        <field name="name">Batch Cancel Data Migration</field>
+        <field name="type">ir.actions.server</field>
+        <field name="model_id" ref="model_odoo_data_migration"/>
+        <field name="binding_model_id" ref="model_odoo_data_migration"/>
+        <field name="state">code</field>
+        <field name="code">
+          records.batch_cancel_migration()
         </field>
     </record>
 

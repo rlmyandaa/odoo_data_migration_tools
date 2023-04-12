@@ -23,7 +23,7 @@ class TestOdooDataMigrationCommon(TransactionCase):
             cls,
             migration_name: str,
             model_name: str,
-            function_name: str):
+            function_name: str) -> OdooDataMigration:
         payload = {
             'name': migration_name,
             'description': migration_name,
@@ -39,7 +39,7 @@ class TestOdooDataMigrationCommon(TransactionCase):
             migration_name: str,
             model_name: str,
             function_name: str,
-            scheduled_running_time: datetime = False):
+            scheduled_running_time: datetime = False) -> OdooDataMigration:
         payload = {
             'name': migration_name,
             'description': migration_name,
