@@ -5,7 +5,9 @@
       <field name="name">Migration List</field>
       <field name="model">odoo.data.migration</field>
       <field name="arch" type="xml">
-        <tree>
+        <tree decoration-info="migration_status == 'queued'"
+          decoration-success="migration_status == 'done'"
+          decoration-danger="migration_status == 'failed'">
           <field name="name"/>
           <field name="description"/>
           <field name="model_name"/>
