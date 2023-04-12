@@ -4,9 +4,9 @@
         <field name="name">Reschedule Migration</field>
         <field name="model">reschedule.migration.wizard</field>
         <field name="arch" type="xml">
-            <form string="Input Game Command">
+            <form string="Reschedule Migration">
                 <group class="oe_title">
-                    <field name="data_migration_record" attrs="{'readonly':[(1, '=', 1)]}" />
+                    <field name="data_migration_record" readonly="1" />
                     <field name="rescheduled_time"/>
                 </group>
                 <footer>
