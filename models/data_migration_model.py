@@ -43,8 +43,9 @@ class OdooDataMigration(models.Model):
     last_run = fields.Datetime('Last Migration Run')
     error_traceback = fields.Text('Error Debug Traceback')
     migration_created_date = fields.Datetime('Migration Creation Date')
-    scheduled_running_time = fields.Datetime('Scheduled Running Time',
-                                             help='You need to use reschedule menu to change scheduled\
+    scheduled_running_time = fields.Datetime(
+        'Scheduled Running Time',
+        help='You need to use reschedule menu to change scheduled\
                                                  running time for migration that using cron job.')
     ir_cron_reference = fields.Many2one('ir.cron', string='Ir Cron Record')
     running_method = fields.Selection(
@@ -64,12 +65,6 @@ class OdooDataMigration(models.Model):
     def _validate_running_method(self):
         """ Validate running_method for the migration records. """
         for record in self:
-            # Using only either cron or at upgrade
-            if record.running_method == eRunningMethod.cron_job.name and\
-                    record.running_method == eRunningMethod.at_upgrade.name:
-                raise ValidationError(
-                    'Cannot run migration using both cron and at upgrade.')
-
             # If using cron, make sure time is exist
             if record.running_method == eRunningMethod.cron_job.name and not record.scheduled_running_time:
                 raise ValidationError(
@@ -142,12 +137,12 @@ class OdooDataMigration(models.Model):
             })
 
         return result
-    
+
     def write(self, vals_list):
         # In case when changing migration from at_upgrade to using cron_job,
         # auto add new ir_cron record.
         result = super().write(vals_list)
-        cron_migration : OdooDataMigration = self.filtered_domain([
+        cron_migration: OdooDataMigration = self.filtered_domain([
             '&',
             '&',
             ('running_method', '=', eRunningMethod.cron_job.name),
@@ -157,7 +152,7 @@ class OdooDataMigration(models.Model):
         for record in cron_migration:
             cron_record = record._create_cron_data()
             record.ir_cron_reference = cron_record
-        
+
         return result
 
     @api.model
@@ -291,7 +286,7 @@ class OdooDataMigration(models.Model):
         self.write({
             'migration_status': eMigrationStatus.queued.name
         })
-    
+
     def _deactivate_cron(self):
         """ Deactivate cron record. """
         self.ensure_one()
