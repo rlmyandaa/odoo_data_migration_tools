@@ -30,6 +30,8 @@ class OdooDataMigration(models.Model):
         help='Migration Function Name in Source Model')
     migration_status = fields.Selection(
         selection=[
+            (eMigrationStatus.cancelled.name,
+             'Cancelled'),
             (eMigrationStatus.queued.name,
              'Queued'),
             (eMigrationStatus.running.name,
@@ -166,7 +168,7 @@ class OdooDataMigration(models.Model):
         auto_upgrade_data: OdooDataMigration = self.search([
             '&',
             ('running_method', '=', eRunningMethod.at_upgrade.name),
-            ('migration_status', '!=', 'done')
+            ('migration_status', '=', eMigrationStatus.queued.name)
         ])
 
         migration_count = len(auto_upgrade_data)
@@ -294,4 +296,33 @@ class OdooDataMigration(models.Model):
             self.ir_cron_reference.write({
                 'active': False,
                 'numbercall': 0
+            })
+
+    def batch_cancel_migration(self):
+        """
+        Function to cancel migration as batch. Used for contextual action button
+        in list view.
+        """
+        for record in self:
+            if record.migration_status not in [
+                    eMigrationStatus.done.name,
+                    eMigrationStatus.running.name,
+                    eMigrationStatus.cancelled.name]:
+                record.cancel_migration()
+
+    def cancel_migration(self):
+        """ Cancel migration. """
+        self.ensure_one()
+        if self.running_method == eRunningMethod.cron_job.name:
+            try:
+                self._deactivate_cron()
+                self.write({
+                    'migration_status': eMigrationStatus.cancelled.name
+                })
+            except Exception:
+                raise ValidationError(
+                    "Cron failed to cancel. The cron job might currently still running.")
+        else:
+            self.write({
+                'migration_status': eMigrationStatus.cancelled.name
             })

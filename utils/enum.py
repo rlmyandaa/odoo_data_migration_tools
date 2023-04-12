@@ -6,6 +6,7 @@ class eMigrationStatus(str, Enum):
     running = auto()
     done = auto()
     failed = auto()
+    cancelled = auto()
 
 
 class eRunningMethod(str, Enum):
