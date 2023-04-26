@@ -1,7 +1,7 @@
 <odoo>
   <data>
     <!-- List View -->
-    <record model="ir.ui.view" id="odoo_data_migration.list">
+    <record model="ir.ui.view" id="odoo_data_migration_tools.list">
       <field name="name">Migration List</field>
       <field name="model">odoo.data.migration</field>
       <field name="arch" type="xml">
@@ -21,7 +21,7 @@
     </record>
 
     <!-- Form View -->
-    <record model="ir.ui.view" id="odoo_data_migration.form">
+    <record model="ir.ui.view" id="odoo_data_migration_tools.form">
       <field name="name">Migration Form</field>
       <field name="model">odoo.data.migration</field>
       <field name="arch" type="xml">
@@ -31,7 +31,7 @@
             <button type="object" name="requeue_migration" string="Requeue Migration"/>
             <button type="object" name="cancel_migration" string="Cancel Migration"
               attrs="{'invisible': [('migration_status', 'in', ['cancelled', 'running', 'done'])]}"/>
-            <button type="action" name="%(odoo_data_migration.reschedule_migration_wizard_action)d"
+            <button type="action" name="%(odoo_data_migration_tools.reschedule_migration_wizard_action)d"
               string="Reschedule Cron"
               attrs="{'invisible': ['|', ('running_method', '=', 'at_upgrade'), ('migration_status', '=', 'done')]}"/>
             <field name="migration_status" widget="statusbar" statusbar_visible="cancelled,queued,running,done,failed"/>
@@ -84,7 +84,7 @@
         </field>
     </record>
 
-    <record id="odoo_data_migration.search" model="ir.ui.view">
+    <record id="odoo_data_migration_tools.search" model="ir.ui.view">
           <field name="name">Data Migration Search</field>
           <field name="model">odoo.data.migration</field>
           <field name="arch" type="xml">
@@ -100,7 +100,7 @@
 
 
     <!-- actions opening views on models -->
-    <record model="ir.actions.act_window" id="odoo_data_migration.action_window">
+    <record model="ir.actions.act_window" id="odoo_data_migration_tools.action_window">
       <field name="name">Data Migration</field>
       <field name="res_model">odoo.data.migration</field>
       <field name="view_mode">tree,form</field>
@@ -109,11 +109,11 @@
 
     <!-- Root menu item -->
     <menuitem name="Data Migration Tools"
-    id="odoo_data_migration.menu_root"
+    id="odoo_data_migration_tools.menu_root"
     web_icon="odoo_data_migration,static/description/icon.png"/>
     <!-- Menu categories -->
-    <menuitem name="Data Migration" id="odoo_data_migration.menu_1" parent="odoo_data_migration.menu_root"
-      action="odoo_data_migration.action_window"/>
+    <menuitem name="Data Migration" id="odoo_data_migration_tools.menu_1" parent="odoo_data_migration_tools.menu_root"
+      action="odoo_data_migration_tools.action_window"/>
     
   </data>
 </odoo>
