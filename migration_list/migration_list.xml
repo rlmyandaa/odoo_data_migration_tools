@@ -6,7 +6,7 @@
             <field name="model_name">odoo.data.migration.test</field>
             <field name="migration_function">test_run</field>
             <field name="running_method">at_upgrade</field>
-            <field name="running_method"></field>
+            <field name="scheduled_running_time">2023-04-11 12:46:00</field>
           </record>
           <record id="test_migrate_data_2" model="odoo.data.migration">
             <field name="name">Test Migrate Data 2</field>
