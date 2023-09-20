@@ -18,6 +18,7 @@
 
     # Add depends to existing module that needs to be migrated
     'depends': ['base'],
+    # 'depends': ['base', 'web', 'module1', 'module2', 'etc']
 
     # always loaded
     'data': [
